@@ -23,8 +23,16 @@ def unsorted_df():
 
 
 def check_all_requirements(chunks, chunk_size, column="dt"):
-    for i, chunk in enumerate(chunks):
+    chunks = list(chunks)
+
+    # Все чанки, кроме последнего, >= chunk_size
+    for i, chunk in enumerate(chunks[:-1]):
         assert len(chunk) >= chunk_size
+
+    # Последний чанк может быть меньше, но не пустой
+    assert len(chunks[-1]) > 0
+
+    # Группы не разорваны
     for i, chunk in enumerate(chunks):
         chunk_values = set(chunk[column].unique())
         for j, other in enumerate(chunks):
@@ -32,29 +40,35 @@ def check_all_requirements(chunks, chunk_size, column="dt"):
                 continue
             common = chunk_values & set(other[column].unique())
             assert not common
+
+    # Даты не пересекаются
     for i in range(len(chunks) - 1):
         assert chunks[i][column].max() < chunks[i + 1][column].min()
+
+    # Порядок сохранён
     for i in range(len(chunks) - 1):
         assert chunks[i].index[-1] < chunks[i + 1].index[0]
+
+    # Данные не пусты
     total = sum(len(chunk) for chunk in chunks)
     assert total > 0
 
 
 def test_regular_case(standard_df):
-    chunks = split_into_chunks(standard_df, chunk_size=4)
+    chunks = list(split_into_chunks(standard_df, chunk_size=4))
     assert len(chunks) == 3
     assert all(len(c) == 6 for c in chunks)
     check_all_requirements(chunks, chunk_size=4)
 
 
 def test_chunk_size_bigger_than_df(standard_df):
-    chunks = split_into_chunks(standard_df, chunk_size=100)
+    chunks = list(split_into_chunks(standard_df, chunk_size=100))
     assert len(chunks) == 1
     assert len(chunks[0]) == 18
 
 
 def test_chunk_size_one(standard_df):
-    chunks = split_into_chunks(standard_df, chunk_size=1)
+    chunks = list(split_into_chunks(standard_df, chunk_size=1))
     assert len(chunks) == 6
     assert all(len(c) == 3 for c in chunks)
     check_all_requirements(chunks, chunk_size=1)
@@ -62,28 +76,28 @@ def test_chunk_size_one(standard_df):
 
 def test_chunk_size_zero(standard_df):
     with pytest.raises(ValueError):
-        split_into_chunks(standard_df, chunk_size=0)
+        list(split_into_chunks(standard_df, chunk_size=0))
 
 
 def test_chunk_size_negative(standard_df):
     with pytest.raises(ValueError):
-        split_into_chunks(standard_df, chunk_size=-5)
+        list(split_into_chunks(standard_df, chunk_size=-5))
 
 
 def test_empty_df(empty_df):
-    chunks = split_into_chunks(empty_df, chunk_size=4)
+    chunks = list(split_into_chunks(empty_df, chunk_size=4))
     assert chunks == []
 
 
 def test_unsorted_df(unsorted_df):
-    chunks = split_into_chunks(unsorted_df, chunk_size=4, assume_sorted=False)
+    chunks = list(split_into_chunks(unsorted_df, chunk_size=4, assume_sorted=False))
     assert len(chunks) == 3
     check_all_requirements(chunks, chunk_size=4)
 
 
 def test_single_large_group():
     df = pd.DataFrame({"dt": pd.to_datetime(["2023-01-01"] * 10)})
-    chunks = split_into_chunks(df, chunk_size=4)
+    chunks = list(split_into_chunks(df, chunk_size=4))
     assert len(chunks) == 1
     assert len(chunks[0]) == 10
 
@@ -97,36 +111,36 @@ def test_uneven_groups():
             ["2023-01-04"] * 5
         )
     })
-    chunks = split_into_chunks(df, chunk_size=4)
+    chunks = list(split_into_chunks(df, chunk_size=4))
     check_all_requirements(chunks, chunk_size=4)
     assert sum(len(c) for c in chunks) == 12
 
 
 def test_assume_sorted_true(standard_df):
-    chunks = split_into_chunks(standard_df, chunk_size=4, assume_sorted=True)
+    chunks = list(split_into_chunks(standard_df, chunk_size=4, assume_sorted=True))
     assert len(chunks) == 3
     check_all_requirements(chunks, chunk_size=4)
 
 
 def test_assume_sorted_true_but_unsorted(unsorted_df):
     with pytest.raises(ValueError, match="assume_sorted=True"):
-        split_into_chunks(unsorted_df, chunk_size=4, assume_sorted=True)
+        list(split_into_chunks(unsorted_df, chunk_size=4, assume_sorted=True))
 
 
 def test_single_group():
     df = pd.DataFrame({"dt": pd.to_datetime(["2023-01-01"] * 7)})
-    chunks = split_into_chunks(df, chunk_size=3)
+    chunks = list(split_into_chunks(df, chunk_size=3))
     assert len(chunks) == 1
     assert len(chunks[0]) == 7
 
 
 def test_all_data_preserved(standard_df):
-    chunks = split_into_chunks(standard_df, chunk_size=4)
+    chunks = list(split_into_chunks(standard_df, chunk_size=4))
     assert sum(len(c) for c in chunks) == len(standard_df)
 
 
 def test_groups_not_broken(standard_df):
-    chunks = split_into_chunks(standard_df, chunk_size=4)
+    chunks = list(split_into_chunks(standard_df, chunk_size=4))
     for dt_value in standard_df["dt"].unique():
         chunks_with_dt = [
             i for i, chunk in enumerate(chunks)
@@ -139,7 +153,7 @@ def test_custom_column():
     df = pd.DataFrame({
         "event_type": ["A"] * 1 + ["B"] * 5 + ["C"] * 1 + ["D"] * 5
     })
-    chunks = split_into_chunks(df, chunk_size=4, column="event_type")
+    chunks = list(split_into_chunks(df, chunk_size=4, column="event_type"))
     check_all_requirements(chunks, chunk_size=4, column="event_type")
     assert sum(len(c) for c in chunks) == 12
 
@@ -147,4 +161,26 @@ def test_custom_column():
 def test_missing_column():
     df = pd.DataFrame({"dt": pd.to_datetime(["2023-01-01"] * 5)})
     with pytest.raises(KeyError):
-        split_into_chunks(df, chunk_size=4, column="nonexistent")
+        list(split_into_chunks(df, chunk_size=4, column="nonexistent"))
+
+@pytest.mark.parametrize("chunk_size, expected_sizes", [
+    (1, [2, 3, 1]),
+    (2, [2, 3, 1]),
+    (3, [5, 1]),
+    (4, [5, 1]),
+    (5, [5, 1]),
+    (6, [6]),
+])
+def test_tz_example(chunk_size, expected_sizes):
+    df = pd.DataFrame({
+        "dt": pd.to_datetime([
+            "2023-01-01 00:00:01",
+            "2023-01-01 00:00:01",
+            "2023-01-01 00:00:02",
+            "2023-01-01 00:00:02",
+            "2023-01-01 00:00:02",
+            "2023-01-01 00:00:03",
+        ])
+    })
+    chunks = list(split_into_chunks(df, chunk_size=chunk_size))
+    assert [len(c) for c in chunks] == expected_sizes
