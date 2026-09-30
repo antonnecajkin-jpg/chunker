@@ -8,7 +8,7 @@ print("Исходный df:")
 print(df.head(10))
 print(f"Всего строк: {len(df)}\n")
 
-chunks = split_into_chunks(df, chunk_size=4)
+chunks = list(split_into_chunks(df, chunk_size=4))
 
 print(f"Получено чанков: {len(chunks)}\n")
 for i, chunk in enumerate(chunks):
