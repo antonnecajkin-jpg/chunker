@@ -13,19 +13,20 @@ def split_into_chunks(
     Разбивает DataFrame на чанки по указанной колонке.
 
     Возвращает генератор чанков. Хвостовой чанк может быть меньше
-    chunk_size — зависит от того, как алгоритм дойдёт до конца.
+    chunk_size.
 
     Параметры:
         df: DataFrame.
         chunk_size: желаемый минимальный размер чанка.
-        column: имя колонки для группировки (по умолчанию "dt").
-        assume_sorted: если True — предполагается, что df упорядочен по column.
-            Если данные НЕ упорядочены — выбрасывается ValueError.
-            Если False — данные сортируются внутри функции.
+        column: имя колонки для группировки. По умолчанию "dt".
+        assume_sorted: если True, данные считаются упорядоченными по column.
+            Если нет, выбрасывается ValueError. По умолчанию False,
+            данные сортируются внутри.
 
     Исключения:
-        ValueError: если chunk_size <= 0, или если assume_sorted=True,
-            но данные не упорядочены.
+        ValueError: если chunk_size <= 0.
+        ValueError: если assume_sorted=True, но данные не упорядочены.
+        ValueError: если column содержит NA (pd.NA, NaN, NaT).
         KeyError: если column отсутствует в df.
     """
     if chunk_size <= 0:
@@ -34,6 +35,11 @@ def split_into_chunks(
         raise KeyError(f"Column '{column}' not found in DataFrame")
     if df.empty:
         return
+    if df[column].isna().any():
+        raise ValueError(
+            f"Column '{column}' contains NA values. "
+            f"Use fillna() or dropna() before calling."
+        )
 
     if assume_sorted:
         if not df[column].is_monotonic_increasing:
@@ -42,7 +48,7 @@ def split_into_chunks(
                 f"Передайте assume_sorted=False или отсортируйте данные."
             )
     else:
-        df = df.sort_values(column).reset_index(drop=True)
+        df = df.sort_values(column, kind="stable").reset_index(drop=True)
 
     values = df[column].to_numpy()
     is_new_group = np.empty(len(values), dtype=bool)

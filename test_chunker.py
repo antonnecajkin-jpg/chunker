@@ -25,14 +25,11 @@ def unsorted_df():
 def check_all_requirements(chunks, chunk_size, column="dt"):
     chunks = list(chunks)
 
-    # Все чанки, кроме последнего, >= chunk_size
     for i, chunk in enumerate(chunks[:-1]):
         assert len(chunk) >= chunk_size
 
-    # Последний чанк может быть меньше, но не пустой
     assert len(chunks[-1]) > 0
 
-    # Группы не разорваны
     for i, chunk in enumerate(chunks):
         chunk_values = set(chunk[column].unique())
         for j, other in enumerate(chunks):
@@ -41,15 +38,12 @@ def check_all_requirements(chunks, chunk_size, column="dt"):
             common = chunk_values & set(other[column].unique())
             assert not common
 
-    # Даты не пересекаются
     for i in range(len(chunks) - 1):
         assert chunks[i][column].max() < chunks[i + 1][column].min()
 
-    # Порядок сохранён
     for i in range(len(chunks) - 1):
         assert chunks[i].index[-1] < chunks[i + 1].index[0]
 
-    # Данные не пусты
     total = sum(len(chunk) for chunk in chunks)
     assert total > 0
 
@@ -136,7 +130,11 @@ def test_single_group():
 
 def test_all_data_preserved(standard_df):
     chunks = list(split_into_chunks(standard_df, chunk_size=4))
-    assert sum(len(c) for c in chunks) == len(standard_df)
+    combined = pd.concat(chunks)
+    pd.testing.assert_frame_equal(
+        combined.reset_index(drop=True),
+        standard_df.reset_index(drop=True),
+    )
 
 
 def test_groups_not_broken(standard_df):
@@ -163,6 +161,13 @@ def test_missing_column():
     with pytest.raises(KeyError):
         list(split_into_chunks(df, chunk_size=4, column="nonexistent"))
 
+
+def test_empty_df_without_column():
+    df = pd.DataFrame({"other": []})
+    with pytest.raises(KeyError):
+        list(split_into_chunks(df, chunk_size=4, column="dt"))
+
+
 @pytest.mark.parametrize("chunk_size, expected_sizes", [
     (1, [2, 3, 1]),
     (2, [2, 3, 1]),
@@ -185,7 +190,37 @@ def test_tz_example(chunk_size, expected_sizes):
     chunks = list(split_into_chunks(df, chunk_size=chunk_size))
     assert [len(c) for c in chunks] == expected_sizes
 
-def test_empty_df_without_column():
-    df = pd.DataFrame({"other": []})
-    with pytest.raises(KeyError):
-        list(split_into_chunks(df, chunk_size=4, column="dt"))
+
+
+
+def test_sort_is_stable():
+    """sort_values с kind='stable' сохраняет порядок одинаковых ключей."""
+    df = pd.DataFrame({
+        "dt": pd.to_datetime(["2023-01-01"] * 3),
+        "value": [10, 20, 30],
+    })
+    chunks = list(split_into_chunks(df, chunk_size=2))
+    combined = pd.concat(chunks)
+    assert list(combined["value"]) == [10, 20, 30]
+
+def test_pd_na_raises():
+    """pd.NA в колонке → ValueError, а не TypeError."""
+    df = pd.DataFrame({"dt": ["a", "b", pd.NA, "c"]})
+    with pytest.raises(ValueError, match="NA values"):
+        list(split_into_chunks(df, chunk_size=2))
+
+
+def test_nan_raises():
+    """NaN в колонке → ValueError."""
+    df = pd.DataFrame({"dt": [1.0, 2.0, np.nan, 4.0]})
+    with pytest.raises(ValueError, match="NA values"):
+        list(split_into_chunks(df, chunk_size=2))
+
+
+def test_nat_raises():
+    """NaT в datetime-колонке → ValueError."""
+    df = pd.DataFrame({
+        "dt": pd.to_datetime(["2023-01-01", pd.NaT, "2023-01-02"])
+    })
+    with pytest.raises(ValueError, match="NA values"):
+        list(split_into_chunks(df, chunk_size=2))
