@@ -30,6 +30,8 @@ def split_into_chunks(
     """
     if chunk_size <= 0:
         raise ValueError("chunk_size must be > 0")
+    if column not in df.columns:
+        raise KeyError(f"Column '{column}' not found in DataFrame")
     if df.empty:
         return
 

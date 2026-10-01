@@ -184,3 +184,8 @@ def test_tz_example(chunk_size, expected_sizes):
     })
     chunks = list(split_into_chunks(df, chunk_size=chunk_size))
     assert [len(c) for c in chunks] == expected_sizes
+
+def test_empty_df_without_column():
+    df = pd.DataFrame({"other": []})
+    with pytest.raises(KeyError):
+        list(split_into_chunks(df, chunk_size=4, column="dt"))
