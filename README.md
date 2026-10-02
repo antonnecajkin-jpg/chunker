@@ -47,15 +47,18 @@ chunks = list(split_into_chunks(df, chunk_size=4, column="event_type"))
 * ValueError: если chunk_size <= 0.
 * ValueError: если assume_sorted=True, но данные не упорядочены.
 * ValueError: если column содержит NA (pd.NA, NaN, NaT).
+* ValueError: если column содержит смешанные типы.
 * KeyError: если column отсутствует в df.
 
 ## Ограничения
 
-Колонка не должна содержать пропуски (pd.NA, NaN, NaT). При наличии пропусков выбрасывается ValueError. Перед вызовом используйте fillna() или dropna().
+Колонка не должна содержать пропуски (pd.NA, NaN, NaT) и смешанные типы.
+При наличии — выбрасывается ValueError.
+Перед вызовом используйте fillna(), dropna() или унифицируйте типы.
 
 ## Тесты
 
-27 тестов:
+28 тестов:
 
 * обычный случай;
 * границы: chunk_size = 1, chunk_size > len(df), пустой df, одна группа, одна большая группа;
@@ -64,6 +67,7 @@ chunks = list(split_into_chunks(df, chunk_size=4, column="event_type"))
 * произвольные колонки;
 * пример из ТЗ;
 * пропуски: pd.NA, NaN, NaT;
+* смешанные типы;
 * стабильность сортировки;
 * инварианты: данные сохранены, группы не разорваны.
 
