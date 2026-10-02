@@ -36,17 +36,17 @@ def split_into_chunks(
         raise KeyError(f"Column '{column}' not found in DataFrame")
     if df.empty:
         return
+    if df[column].isna().any():
+        raise ValueError(
+            f"Column '{column}' contains NA values. "
+            f"Use fillna() or dropna() before calling."
+    )
     if df[column].dtype == object:
         types = df[column].apply(type).unique()
         if len(types) > 1:
             raise ValueError(
                 f"Column '{column}' contains mixed types. "
                 f"Unify types before calling."
-            )
-    if df[column].isna().any():
-        raise ValueError(
-            f"Column '{column}' contains NA values. "
-            f"Use fillna() or dropna() before calling."
         )
 
     if assume_sorted:
