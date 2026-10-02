@@ -25,6 +25,9 @@ def unsorted_df():
 def check_all_requirements(chunks, chunk_size, column="dt"):
     chunks = list(chunks)
 
+    total = sum(len(chunk) for chunk in chunks)
+    assert total > 0
+
     for i, chunk in enumerate(chunks[:-1]):
         assert len(chunk) >= chunk_size
 
@@ -43,9 +46,6 @@ def check_all_requirements(chunks, chunk_size, column="dt"):
 
     for i in range(len(chunks) - 1):
         assert chunks[i].index[-1] < chunks[i + 1].index[0]
-
-    total = sum(len(chunk) for chunk in chunks)
-    assert total > 0
 
 
 def test_regular_case(standard_df):
