@@ -224,3 +224,8 @@ def test_nat_raises():
     })
     with pytest.raises(ValueError, match="NA values"):
         list(split_into_chunks(df, chunk_size=2))
+
+def test_mixed_types_raises():
+    df = pd.DataFrame({"dt": ["a", 1, "b"]})
+    with pytest.raises(ValueError, match="mixed types"):
+        list(split_into_chunks(df, chunk_size=2))

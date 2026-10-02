@@ -27,6 +27,7 @@ def split_into_chunks(
         ValueError: если chunk_size <= 0.
         ValueError: если assume_sorted=True, но данные не упорядочены.
         ValueError: если column содержит NA (pd.NA, NaN, NaT).
+        ValueError: если column содержит смешанные типы.
         KeyError: если column отсутствует в df.
     """
     if chunk_size <= 0:
@@ -35,6 +36,13 @@ def split_into_chunks(
         raise KeyError(f"Column '{column}' not found in DataFrame")
     if df.empty:
         return
+    if df[column].dtype == object:
+        types = df[column].apply(type).unique()
+        if len(types) > 1:
+            raise ValueError(
+                f"Column '{column}' contains mixed types. "
+                f"Unify types before calling."
+            )
     if df[column].isna().any():
         raise ValueError(
             f"Column '{column}' contains NA values. "
